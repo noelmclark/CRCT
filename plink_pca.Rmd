@@ -1,0 +1,85 @@
+---
+title: "plink_pca"
+author: "noel clark"
+date: "2024-07-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(plotly)
+
+####load sample and population dataframe names####
+meta_sample_info <- read.csv("./data/dna_info/meta-sample-info.csv")
+
+#create a smaller df for pca plotting
+popdata <- meta_sample_info %>% 
+  select(sample,population,basin,slope,lineage)
+
+##load eigenvvectors and values matrices from plink
+e_vec <- as.matrix(read.table("./data/results/plink/snps-no-y-pca.eigenvec"))
+e_val <- as.matrix(read.table("./data/results/plink/snps-no-y-pca.eigenval"))
+
+#set the ID column to rownames 
+rownames(e_vec) <- e_vec[,1]
+
+#load names and first & second PC as df to plot with ggplot
+pca_12 <- as.data.frame(e_vec[,1:3]) %>% 
+  rename(sample = V1,
+         V1 = V2,
+         V2 = V3) %>% 
+  mutate(V1 = as.numeric(V1),
+         V2 = as.numeric(V2))
+
+#join 1st and 2nd PCs with their sample meta info
+pca_12 <- full_join(pca_12, popdata, by="sample")
+
+lineage_cols <- c("green"="darkseagreen4", "blue" = "royalblue4", "greenback"="green", 
+                  "rio_grande"="purple", "san_juan"="orange","yellowstone"="yellow",
+                  "coastal"="black", "westslope"="brown",  "lahontan"="pink", "bonneville"="grey")
+
+p1 <- ggplot(pca_12, aes(x=V1, y=V2, color=lineage, fill=population)) +
+  geom_point(position = "jitter",
+             size=2) +
+  labs(x="PC1 (32.70%)", y="PC2 (7.98)", title="Plink, PC1 and PC2") +
+  scale_color_manual(values = lineage_cols) + 
+  theme(legend.position = "right") 
+  #theme_void()
+#interactive plot
+ggplotly(p1)
+
+ggsave("plink_pca_no_y_variants_missing.png", width=14, height=10)
+```
+
+AFS 2024 Talk PCA
+```{r}
+p2 <- ggplot(pca_12, aes(V1, V2, color=lineage)) +
+  geom_point(position = "jitter",
+             size=2) +
+  labs(x="PC1 (32.70%)", y="PC2 (7.98%)", title="PLINK, PC1 and PC2") +
+  scale_color_manual(values = lineage_cols) + 
+  theme(legend.position = "right")
+#interactive plot
+ggplotly(p2)
+
+#ggsave("AFS_24_plink_pca.png", width=7, height=4)
+
+#same PCA info as P2, but just zoomed in on SRM trout
+p3 <- ggplot(pca_12, aes(V1, V2, color=lineage, fill=population)) +
+  geom_point(position = "jitter",
+             size=2) +
+  labs(x="PC1 (32.70%)", y="PC2 (7.98%)", title="PLINK, PC1 and PC2") +
+  scale_color_manual(values = lineage_cols) + 
+  theme(legend.position = "right") + 
+  xlim(-0.1, 0.004) +
+  ylim(-0.1,0.06) 
+ggplotly(p3)
+
+#ggsave("AFS_24_zoomed_plink_pca.png", width=7, height=4)
+```
+
